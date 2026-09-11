@@ -203,7 +203,7 @@ st.divider()
 # Actions
 # --------------------------------
 
-button1, button2 = st.columns(2)
+button1, button2, button3 = st.columns(3)
 
 
 with button1:
@@ -213,10 +213,24 @@ with button1:
         use_container_width=True
     ):
 
-        st.switch_page("pages/products.py")
+        st.switch_page(
+            "pages/products.py"
+        )
 
 
 with button2:
+
+    if st.button(
+        "💳 Checkout",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/checkout.py"
+        )
+
+
+with button3:
 
     if st.button(
         "🗑️ Clear Cart",
@@ -226,8 +240,3 @@ with button2:
         clear_cart()
 
         st.rerun()
-
-
-st.success(
-    "Checkout will be implemented in a later phase."
-)
