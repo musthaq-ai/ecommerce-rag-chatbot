@@ -1,7 +1,9 @@
 import streamlit as st
 from data.products import products
 from utils.cart import get_cart_count
+import streamlit as st
 
+from utils.supabase_client import supabase
 
 st.set_page_config(
     page_title="ShopX",
@@ -267,3 +269,10 @@ st.divider()
 st.caption(
     "© 2026 ShopX — AI-powered e-commerce experience"
 )
+try:
+    response = supabase.table("products").select("*").execute()
+
+    st.success("Supabase connection successful!")
+
+except Exception as e:
+    st.error(f"Supabase connection failed: {e}")
