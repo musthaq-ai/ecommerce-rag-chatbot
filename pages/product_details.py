@@ -2,7 +2,9 @@ import streamlit as st
 
 from data.products import products
 from utils.cart import add_to_cart
+from utils.auth import require_auth
 
+require_auth()
 
 st.set_page_config(
     page_title="Product Details - ShopX",

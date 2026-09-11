@@ -1,8 +1,20 @@
 import streamlit as st
 
-from data.products import products
 from utils.cart import clear_cart
+from utils.auth import require_auth
+from utils.supabase_client import supabase
 
+
+# ==========================================
+# Authentication
+# ==========================================
+
+require_auth()
+
+
+# ==========================================
+# Page Configuration
+# ==========================================
 
 st.set_page_config(
     page_title="Checkout - ShopX",
@@ -12,7 +24,7 @@ st.set_page_config(
 
 
 # ==========================================
-# Check cart
+# Check Cart
 # ==========================================
 
 if "cart" not in st.session_state:
@@ -23,32 +35,80 @@ cart = st.session_state.cart
 
 
 if not cart:
+
     st.warning("Your cart is empty.")
 
-    if st.button("🛍️ Continue Shopping"):
+    if st.button(
+        "🛍️ Continue Shopping",
+        key="continue_shopping_btn"
+    ):
         st.switch_page("pages/products.py")
 
     st.stop()
 
 
 # ==========================================
-# Page title
+# Get Current User
+# ==========================================
+
+user = st.session_state.user
+
+
+# ==========================================
+# Fetch Products from Supabase
+# ==========================================
+
+try:
+
+    response = (
+        supabase
+        .table("products")
+        .select("*")
+        .execute()
+    )
+
+    products = response.data
+
+except Exception as e:
+
+    st.error(
+        f"Unable to load products: {e}"
+    )
+
+    st.stop()
+
+
+# ==========================================
+# Convert Products into Lookup Dictionary
+# ==========================================
+
+product_lookup = {
+    product["id"]: product
+    for product in products
+}
+
+
+# ==========================================
+# Page Title
 # ==========================================
 
 st.title("💳 Checkout")
 
-st.write("Complete your order details below.")
+st.write(
+    "Complete your order details below."
+)
 
 st.divider()
 
 
 # ==========================================
-# Customer information
+# Customer Information
 # ==========================================
 
 st.subheader("👤 Customer Information")
 
 col1, col2 = st.columns(2)
+
 
 with col1:
 
@@ -57,10 +117,12 @@ with col1:
         placeholder="Enter your full name"
     )
 
+
 with col2:
 
     email = st.text_input(
         "Email Address",
+        value=user.email or "",
         placeholder="you@example.com"
     )
 
@@ -72,7 +134,7 @@ phone = st.text_input(
 
 
 # ==========================================
-# Shipping address
+# Shipping Address
 # ==========================================
 
 st.subheader("📍 Shipping Address")
@@ -82,7 +144,9 @@ address = st.text_area(
     placeholder="House number, street, area..."
 )
 
+
 col1, col2, col3 = st.columns(3)
+
 
 with col1:
 
@@ -90,11 +154,13 @@ with col1:
         "City"
     )
 
+
 with col2:
 
     state = st.text_input(
         "State"
     )
+
 
 with col3:
 
@@ -123,26 +189,42 @@ st.divider()
 
 
 # ==========================================
-# Calculate order total
+# Calculate Order
 # ==========================================
 
 subtotal = 0
 
+valid_cart_items = []
+
 
 for product_id, quantity in cart.items():
 
-    product = next(
-        (
-            item
-            for item in products
-            if item["id"] == product_id
-        ),
-        None
-    )
+    product = product_lookup.get(product_id)
 
     if product:
 
-        subtotal += product["price"] * quantity
+        item_total = (
+            float(product["price"]) * quantity
+        )
+
+        subtotal += item_total
+
+        valid_cart_items.append(
+            {
+                "product": product,
+                "quantity": quantity,
+                "item_total": item_total
+            }
+        )
+
+
+if not valid_cart_items:
+
+    st.error(
+        "The products in your cart are no longer available."
+    )
+
+    st.stop()
 
 
 shipping = 0
@@ -151,48 +233,39 @@ total = subtotal + shipping
 
 
 # ==========================================
-# Order summary
+# Order Summary
 # ==========================================
 
 st.subheader("🧾 Order Summary")
 
 
-for product_id, quantity in cart.items():
+for item in valid_cart_items:
 
-    product = next(
-        (
-            item
-            for item in products
-            if item["id"] == product_id
-        ),
-        None
+    product = item["product"]
+    quantity = item["quantity"]
+    item_total = item["item_total"]
+
+    col1, col2, col3 = st.columns(
+        [4, 1, 2]
     )
 
-    if product:
+    with col1:
 
-        item_total = product["price"] * quantity
-
-        col1, col2, col3 = st.columns(
-            [4, 1, 2]
+        st.write(
+            f"**{product['name']}**"
         )
 
-        with col1:
+    with col2:
 
-            st.write(
-                f"**{product['name']}**"
-            )
+        st.write(
+            f"× {quantity}"
+        )
 
-        with col2:
+    with col3:
 
-            st.write(
-                f"× {quantity}"
-            )
-
-        with col3:
-
-            st.write(
-                f"₹{item_total:,}"
-            )
+        st.write(
+            f"₹{item_total:,.0f}"
+        )
 
 
 st.divider()
@@ -206,9 +279,12 @@ with col1:
 
     st.write("Subtotal")
 
+
 with col2:
 
-    st.write(f"₹{subtotal:,}")
+    st.write(
+        f"₹{subtotal:,.0f}"
+    )
 
 
 col1, col2 = st.columns(
@@ -218,6 +294,7 @@ col1, col2 = st.columns(
 with col1:
 
     st.write("Shipping")
+
 
 with col2:
 
@@ -235,31 +312,38 @@ with col1:
 
     st.subheader("Total")
 
+
 with col2:
 
     st.subheader(
-        f"₹{total:,}"
+        f"₹{total:,.0f}"
     )
 
 
 # ==========================================
-# Place order
+# Place Order
 # ==========================================
 
 st.divider()
 
+
 if st.button(
     "✅ Place Order",
-    use_container_width=True
+    use_container_width=True,
+    type="primary",
+    key="place_order_btn"
 ):
 
-    # Validate customer information
+    # --------------------------------------
+    # Validate Customer Information
+    # --------------------------------------
 
     if not name.strip():
 
         st.error(
             "Please enter your name."
         )
+
         st.stop()
 
 
@@ -268,6 +352,7 @@ if st.button(
         st.error(
             "Please enter your email."
         )
+
         st.stop()
 
 
@@ -276,6 +361,7 @@ if st.button(
         st.error(
             "Please enter your phone number."
         )
+
         st.stop()
 
 
@@ -284,6 +370,7 @@ if st.button(
         st.error(
             "Please enter your address."
         )
+
         st.stop()
 
 
@@ -292,6 +379,7 @@ if st.button(
         st.error(
             "Please enter your city."
         )
+
         st.stop()
 
 
@@ -300,6 +388,7 @@ if st.button(
         st.error(
             "Please enter your state."
         )
+
         st.stop()
 
 
@@ -308,41 +397,150 @@ if st.button(
         st.error(
             "Please enter your PIN code."
         )
+
         st.stop()
 
 
-    # Create a simple order ID
+    # --------------------------------------
+    # Check Stock
+    # --------------------------------------
 
-    import random
+    for item in valid_cart_items:
 
-    order_id = (
-        "SHOPX-"
-        + str(random.randint(100000, 999999))
-    )
+        product = item["product"]
+        quantity = item["quantity"]
 
+        if quantity > product["stock"]:
 
-    # Store order information
-    st.session_state.last_order = {
-        "order_id": order_id,
-        "name": name,
-        "email": email,
-        "phone": phone,
-        "address": address,
-        "city": city,
-        "state": state,
-        "pincode": pincode,
-        "payment_method": payment_method,
-        "total": total
-    }
+            st.error(
+                f"Only {product['stock']} unit(s) "
+                f"of {product['name']} are available."
+            )
+
+            st.stop()
 
 
-    # Clear cart
+    # --------------------------------------
+    # Create Order
+    # --------------------------------------
 
-    clear_cart()
+    try:
+
+        order_data = {
+            "user_id": user.id,
+            "total_amount": total,
+            "status": "pending",
+            "payment_method": payment_method,
+            "shipping_address": address,
+            "city": city,
+            "state": state,
+            "pincode": pincode
+        }
 
 
-    # Go to confirmation page
+        order_response = (
+            supabase
+    .table("orders")
+    .insert(order_data)
+    .select()
+    .execute()
+)
 
-    st.switch_page(
-        "pages/order_confirmation.py"
-    )
+        if not order_response.data:
+            raise Exception("Order was created but no order data was returned.")
+
+        order = order_response.data[0]
+
+        database_order_id = order["id"]
+
+
+        # ----------------------------------
+        # Create Order Items
+        # ----------------------------------
+
+        order_items = []
+
+
+        for item in valid_cart_items:
+
+            product = item["product"]
+            quantity = item["quantity"]
+
+            order_items.append(
+                {
+                    "order_id": database_order_id,
+                    "product_id": product["id"],
+                    "quantity": quantity,
+                    "price": product["price"]
+                }
+            )
+
+
+        supabase.table(
+            "order_items"
+        ).insert(
+            order_items
+        ).execute()
+
+
+        # ----------------------------------
+        # Create ShopX Order ID
+        # ----------------------------------
+
+        display_order_id = (
+            f"SHOPX-{database_order_id:06d}"
+        )
+
+
+        # ----------------------------------
+        # Save Order for Confirmation Page
+        # ----------------------------------
+
+        st.session_state.last_order = {
+
+            "order_id": display_order_id,
+
+            "database_order_id": database_order_id,
+
+            "name": name,
+
+            "email": email,
+
+            "phone": phone,
+
+            "address": address,
+
+            "city": city,
+
+            "state": state,
+
+            "pincode": pincode,
+
+            "payment_method": payment_method,
+
+            "total": total
+
+        }
+
+
+        # ----------------------------------
+        # Clear Cart
+        # ----------------------------------
+
+        clear_cart()
+
+
+        # ----------------------------------
+        # Go to Confirmation
+        # ----------------------------------
+
+        st.switch_page(
+            "pages/order_confirmation.py"
+        )
+
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Failed to place order: {e}"
+        )

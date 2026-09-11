@@ -1,9 +1,17 @@
 import streamlit as st
-from data.products import products
-from utils.cart import get_cart_count
-import streamlit as st
 
 from utils.supabase_client import supabase
+from utils.cart import get_cart_count
+from utils.auth import (
+    is_authenticated,
+    sign_out,
+    get_current_user_role
+)
+
+
+# ==========================================
+# Page Configuration
+# ==========================================
 
 st.set_page_config(
     page_title="ShopX",
@@ -68,12 +76,38 @@ st.markdown(
 
 
 # ==========================================
+# Authentication Check
+# ==========================================
+
+if not is_authenticated():
+
+    st.warning(
+        "Please login to access your ShopX account."
+    )
+
+    if st.button(
+        "🔐 Login / Create Account",
+        key="login_btn"
+    ):
+        st.switch_page("pages/login.py")
+
+    st.stop()
+
+
+# ==========================================
 # Header
 # ==========================================
+
+user = st.session_state.user
+
+role = get_current_user_role()
+
+st.caption(f"Role: {role}")
 
 header_col1, header_col2, header_col3 = st.columns(
     [5, 1, 1]
 )
+
 
 with header_col1:
 
@@ -82,10 +116,16 @@ with header_col1:
         unsafe_allow_html=True
     )
 
+
 with header_col2:
 
-    if st.button("Products", use_container_width=True):
+    if st.button(
+        "Products",
+        use_container_width=True,
+        key="home_products_btn"
+    ):
         st.switch_page("pages/products.py")
+
 
 with header_col3:
 
@@ -93,12 +133,22 @@ with header_col3:
 
     if st.button(
         f"🛒 Cart ({cart_count})",
-        use_container_width=True
+        use_container_width=True,
+        key="home_cart_btn"
     ):
         st.switch_page("pages/cart.py")
 
 
 st.divider()
+
+
+# ==========================================
+# User Information
+# ==========================================
+
+st.caption(
+    f"Welcome, {user.user_metadata.get('name', user.email)} 👋"
+)
 
 
 # ==========================================
@@ -125,11 +175,13 @@ hero_col1, hero_col2, hero_col3 = st.columns(
     [2, 1, 2]
 )
 
+
 with hero_col2:
 
     if st.button(
         "🛒 Shop Now",
-        use_container_width=True
+        use_container_width=True,
+        key="shop_now_btn"
     ):
 
         st.switch_page("pages/products.py")
@@ -141,16 +193,36 @@ with hero_col2:
 
 st.markdown("## ⭐ Featured Products")
 
-featured_products = products[:3]
+try:
+
+    response = (
+        supabase
+        .table("products")
+        .select("*")
+        .order("id")
+        .limit(3)
+        .execute()
+    )
+
+    featured_products = response.data
+
+except Exception as e:
+
+    st.error(
+        f"Unable to load featured products: {e}"
+    )
+
+    featured_products = []
 
 columns = st.columns(3)
+
 
 for index, product in enumerate(featured_products):
 
     with columns[index]:
 
         st.image(
-            product["image"],
+            product["image_url"],
             use_container_width=True
         )
 
@@ -200,6 +272,7 @@ categories = [
 
 category_columns = st.columns(3)
 
+
 for index, (icon, category) in enumerate(categories):
 
     with category_columns[index % 3]:
@@ -229,6 +302,7 @@ st.divider()
 st.markdown("## 💡 Why ShopX?")
 
 col1, col2, col3 = st.columns(3)
+
 
 with col1:
 
@@ -269,10 +343,3 @@ st.divider()
 st.caption(
     "© 2026 ShopX — AI-powered e-commerce experience"
 )
-try:
-    response = supabase.table("products").select("*").execute()
-
-    st.success("Supabase connection successful!")
-
-except Exception as e:
-    st.error(f"Supabase connection failed: {e}")

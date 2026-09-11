@@ -7,7 +7,9 @@ from utils.cart import (
     update_quantity,
     clear_cart
 )
+from utils.auth import require_auth
 
+require_auth()
 
 st.set_page_config(
     page_title="Cart - ShopX",

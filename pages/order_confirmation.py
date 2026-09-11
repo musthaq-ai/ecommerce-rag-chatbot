@@ -1,5 +1,7 @@
 import streamlit as st
+from utils.auth import require_auth
 
+require_auth()
 
 st.set_page_config(
     page_title="Order Confirmed - ShopX",
