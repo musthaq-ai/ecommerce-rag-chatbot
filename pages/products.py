@@ -10,6 +10,10 @@ st.set_page_config(
 
 
 st.title("🛍️ Product Catalog")
+
+if st.button("← Home"):
+    st.switch_page("app.py")
+
 st.write("Explore our collection of products.")
 
 

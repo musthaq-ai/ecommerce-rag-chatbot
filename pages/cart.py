@@ -18,6 +18,8 @@ st.set_page_config(
 
 st.title("🛒 Shopping Cart")
 
+if st.button("← Continue Shopping"):
+    st.switch_page("pages/products.py")
 
 # --------------------------------
 # Initialize cart
