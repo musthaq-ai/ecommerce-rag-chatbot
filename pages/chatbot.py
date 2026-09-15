@@ -1,10 +1,12 @@
 import streamlit as st
 
 from utils.auth import (
-    require_auth,
+    require_user,
     get_current_user,
+    get_current_user_role,
     restore_supabase_session,
 )
+from utils.nav import render_sidebar
 
 from utils.chat_history import (
     create_conversation,
@@ -19,10 +21,10 @@ from utils.rag.generator import generate_rag_answer
 
 
 # =========================================================
-# Authentication
+# Authentication (customer-only)
 # =========================================================
 
-require_auth()
+require_user()
 
 if not restore_supabase_session():
     st.error(
@@ -41,6 +43,8 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide",
 )
+
+render_sidebar(get_current_user_role())
 
 
 # =========================================================

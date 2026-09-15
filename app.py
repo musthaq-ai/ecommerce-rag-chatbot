@@ -7,6 +7,7 @@ from utils.auth import (
     sign_out,
     get_current_user_role
 )
+from utils.nav import render_sidebar
 
 
 # ==========================================
@@ -101,6 +102,32 @@ if not is_authenticated():
 user = st.session_state.user
 
 role = get_current_user_role()
+
+render_sidebar(role)
+
+
+# ==========================================
+# Admin Redirect
+# ==========================================
+# The storefront below (browsing, cart, shop-now) is a
+# customer-only experience. Admins are routed to their
+# dashboard instead of the shopping home page.
+
+if role == "admin":
+
+    st.info(
+        "👋 You're logged in as an admin. The storefront "
+        "is for customer accounts only."
+    )
+
+    if st.button(
+        "🛠️ Go to Admin Dashboard",
+        key="home_admin_redirect"
+    ):
+        st.switch_page("pages/admin.py")
+
+    st.stop()
+
 
 st.caption(f"Role: {role}")
 

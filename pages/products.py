@@ -1,14 +1,17 @@
 import streamlit as st
 
-from utils.auth import require_auth
+from utils.auth import require_user, get_current_user_role
+from utils.nav import render_sidebar
 from utils.supabase_client import supabase
 
 
 # ==========================================
-# Authentication
+# Authentication (customer-only)
 # ==========================================
 
-require_auth()
+require_user()
+
+render_sidebar(get_current_user_role())
 
 
 # ==========================================

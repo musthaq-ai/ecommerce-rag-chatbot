@@ -179,3 +179,35 @@ def require_admin():
         )
 
         st.stop()
+
+
+# ==========================================
+# Require Customer (Non-Admin) User
+# ==========================================
+
+def require_user():
+    """
+    Use this guard on customer-only pages/features
+    (shopping, cart, checkout, orders, chatbot).
+
+    Ensures the visitor is authenticated AND is not an
+    admin account. Admin accounts are intentionally
+    blocked from customer shopping workflows.
+    """
+
+    require_auth()
+
+    if is_admin():
+
+        st.error(
+            "⛔ Admin accounts cannot access customer "
+            "shopping features."
+        )
+
+        if st.button(
+            "🛠️ Go to Admin Dashboard",
+            key="require_user_admin_redirect"
+        ):
+            st.switch_page("pages/admin.py")
+
+        st.stop()

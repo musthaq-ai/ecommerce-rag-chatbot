@@ -1,6 +1,7 @@
 import streamlit as st
 
 from utils.auth import require_admin
+from utils.nav import render_sidebar
 from utils.rag.ingestion import (
     ingest_document,
     extract_text_from_file
@@ -8,6 +9,8 @@ from utils.rag.ingestion import (
 
 
 require_admin()
+
+render_sidebar("admin")
 
 st.title("🧠 Knowledge Base")
 

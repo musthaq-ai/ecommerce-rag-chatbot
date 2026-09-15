@@ -1,13 +1,16 @@
 import streamlit as st
-from utils.auth import require_auth
+from utils.auth import require_user, get_current_user_role
+from utils.nav import render_sidebar
 
-require_auth()
+require_user()
 
 st.set_page_config(
     page_title="Order Confirmed - ShopX",
     page_icon="✅",
     layout="wide"
 )
+
+render_sidebar(get_current_user_role())
 
 
 # ==========================================

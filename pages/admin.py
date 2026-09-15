@@ -2,6 +2,7 @@ import streamlit as st
 import json
 
 from utils.auth import require_admin
+from utils.nav import render_sidebar
 from utils.supabase_client import supabase
 
 
@@ -21,6 +22,8 @@ st.set_page_config(
     page_icon="🛠️",
     layout="wide"
 )
+
+render_sidebar("admin")
 
 
 # ==========================================

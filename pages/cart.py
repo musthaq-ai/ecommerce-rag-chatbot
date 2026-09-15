@@ -7,15 +7,18 @@ from utils.cart import (
     update_quantity,
     clear_cart
 )
-from utils.auth import require_auth
+from utils.auth import require_user, get_current_user_role
+from utils.nav import render_sidebar
 
-require_auth()
+require_user()
 
 st.set_page_config(
     page_title="Cart - ShopX",
     page_icon="🛒",
     layout="wide"
 )
+
+render_sidebar(get_current_user_role())
 
 
 st.title("🛒 Shopping Cart")
