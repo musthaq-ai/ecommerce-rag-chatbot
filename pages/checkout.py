@@ -3,7 +3,7 @@ import streamlit as st
 from utils.cart import clear_cart
 from utils.auth import require_auth
 from utils.supabase_client import supabase
-
+from datetime import date, timedelta
 
 # ==========================================
 # Authentication
@@ -426,17 +426,21 @@ if st.button(
 
     try:
 
-        order_data = {
-            "user_id": user.id,
-            "total_amount": total,
-            "status": "pending",
-            "payment_method": payment_method,
-            "shipping_address": address,
-            "city": city,
-            "state": state,
-            "pincode": pincode
-        }
+        estimated_delivery_date = (
+    date.today() + timedelta(days=5)
+)
 
+        order_data = {
+    "user_id": user.id,
+    "total_amount": total,
+    "status": "pending",
+    "payment_method": payment_method,
+    "shipping_address": address,
+    "city": city,
+    "state": state,
+    "pincode": pincode,
+    "estimated_delivery_date": estimated_delivery_date.isoformat()
+}
 
         order_response = (
             supabase

@@ -1,0 +1,42 @@
+[
+  {
+    "question": "What is the return policy?",
+    "expected_answer": "The answer should be based on the ShopX return policy in the knowledge base.",
+    "type": "knowledge"
+  },
+  {
+    "question": "What payment methods are available?",
+    "expected_answer": "The answer should list only payment methods supported by ShopX according to the knowledge base.",
+    "type": "knowledge"
+  },
+  {
+    "question": "How long does shipping take?",
+    "expected_answer": "The answer should be based on the shipping information stored in the ShopX knowledge base.",
+    "type": "knowledge"
+  },
+  {
+    "question": "What is the price of a product?",
+    "expected_answer": "The chatbot should retrieve the current product price from the product database.",
+    "type": "product"
+  },
+  {
+    "question": "Is the product available in stock?",
+    "expected_answer": "The chatbot should retrieve current stock information from the product database.",
+    "type": "product"
+  },
+  {
+    "question": "What is my latest order?",
+    "expected_answer": "The chatbot should retrieve the authenticated customer's latest order.",
+    "type": "order"
+  },
+  {
+    "question": "What is my estimated delivery date?",
+    "expected_answer": "The chatbot should retrieve the authenticated customer's estimated delivery date.",
+    "type": "order"
+  },
+  {
+    "question": "What are the products in my latest order?",
+    "expected_answer": "The chatbot should retrieve the products belonging to the authenticated customer's order.",
+    "type": "order"
+  }
+]

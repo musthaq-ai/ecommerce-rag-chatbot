@@ -132,7 +132,27 @@ def get_current_user_role():
         return None
 
     return None
+def restore_supabase_session():
+    """
+    Restore the authenticated Supabase session from
+    Streamlit session state.
+    """
 
+    session = st.session_state.get("session")
+
+    if not session:
+        return False
+
+    try:
+        supabase.auth.set_session(
+            session.access_token,
+            session.refresh_token
+        )
+
+        return True
+
+    except Exception:
+        return False
 # ==========================================
 # Admin Check
 # ==========================================
