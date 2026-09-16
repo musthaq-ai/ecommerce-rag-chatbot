@@ -6,10 +6,12 @@ from opentelemetry import trace
 
 
 # ============================================================
-# Phoenix Cloud Configuration
+# Phoenix Configuration
 # ============================================================
 
-PHOENIX_API_KEY = st.secrets.get("PHOENIX_API_KEY")
+PHOENIX_API_KEY = st.secrets.get(
+    "PHOENIX_API_KEY"
+)
 
 PHOENIX_COLLECTOR_ENDPOINT = st.secrets.get(
     "PHOENIX_COLLECTOR_ENDPOINT"
@@ -22,39 +24,57 @@ PHOENIX_PROJECT_NAME = st.secrets.get(
 
 
 # ============================================================
-# Configure Phoenix
+# Initialize Phoenix Once
 # ============================================================
 
-if PHOENIX_API_KEY and PHOENIX_COLLECTOR_ENDPOINT:
+@st.cache_resource
+def initialize_phoenix():
 
-    # Phoenix authentication
-    os.environ["PHOENIX_CLIENT_HEADERS"] = (
-        f"api_key={PHOENIX_API_KEY}"
-    )
+    # --------------------------------------------------------
+    # Phoenix Cloud
+    # --------------------------------------------------------
 
-    # Phoenix collector
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = (
-        PHOENIX_COLLECTOR_ENDPOINT
-    )
+    if (
+        PHOENIX_API_KEY
+        and PHOENIX_COLLECTOR_ENDPOINT
+    ):
 
-    tracer_provider = register(
-        project_name=PHOENIX_PROJECT_NAME,
-        auto_instrument=False,
-    )
+        os.environ["PHOENIX_CLIENT_HEADERS"] = (
+            f"api_key={PHOENIX_API_KEY}"
+        )
 
-else:
+        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = (
+            PHOENIX_COLLECTOR_ENDPOINT
+        )
 
-    # Local Phoenix
+        tracer_provider = register(
+            project_name=PHOENIX_PROJECT_NAME,
+            set_global_tracer_provider=True,
+            auto_instrument=False,
+        )
+
+        return tracer_provider
+
+
+    # --------------------------------------------------------
+    # Local Phoenix fallback
+    # --------------------------------------------------------
+
     tracer_provider = register(
         project_name=PHOENIX_PROJECT_NAME,
         endpoint="http://localhost:6006/v1/traces",
+        set_global_tracer_provider=True,
         auto_instrument=False,
     )
 
+    return tracer_provider
+
 
 # ============================================================
-# Tracer
+# Start Phoenix
 # ============================================================
+
+tracer_provider = initialize_phoenix()
 
 tracer = tracer_provider.get_tracer(
     "shopx-rag-chatbot"
@@ -62,7 +82,7 @@ tracer = tracer_provider.get_tracer(
 
 
 # ============================================================
-# Current Span ID
+# Get Current Span ID
 # ============================================================
 
 def get_current_span_id():
