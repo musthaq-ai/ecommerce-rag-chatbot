@@ -1,9 +1,10 @@
 import json
+import os
 from pathlib import Path
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 import pandas as pd
-import phoenix as px
-from phoenix.trace import SpanEvaluations
 
 
 # ============================================================
@@ -14,13 +15,46 @@ RESULT_FILE = Path(
     "data/rag_evaluation_final.json"
 )
 
-PHOENIX_URL = "http://localhost:6006"
-
 EVALUATIONS = [
     "faithfulness",
     "answer_relevance",
     "context_relevance",
 ]
+
+
+# ============================================================
+# PHOENIX CONFIGURATION
+# ============================================================
+
+def get_phoenix_config():
+
+    api_key = os.getenv("PHOENIX_API_KEY")
+
+    endpoint = os.getenv(
+        "PHOENIX_COLLECTOR_ENDPOINT"
+    )
+
+    if not api_key:
+        raise ValueError(
+            "PHOENIX_API_KEY is not set."
+        )
+
+    if not endpoint:
+        raise ValueError(
+            "PHOENIX_COLLECTOR_ENDPOINT is not set."
+        )
+
+    # Remove /v1/traces if it was included
+    endpoint = endpoint.rstrip("/")
+
+    if endpoint.endswith("/v1/traces"):
+        endpoint = endpoint[:-10]
+
+    annotation_url = (
+        f"{endpoint}/v1/span_annotations"
+    )
+
+    return api_key, annotation_url
 
 
 # ============================================================
@@ -45,21 +79,6 @@ def load_results():
 
 
 # ============================================================
-# CONNECT TO PHOENIX
-# ============================================================
-
-def get_phoenix_client():
-
-    print(
-        "Connecting to Phoenix..."
-    )
-
-    return px.Client(
-        base_url=PHOENIX_URL
-    )
-
-
-# ============================================================
 # CREATE EVALUATION DATAFRAME
 # ============================================================
 
@@ -76,9 +95,7 @@ def create_evaluation_dataframe(
         if result.get("status") != "evaluated":
             continue
 
-        span_id = result.get(
-            "span_id"
-        )
+        span_id = result.get("span_id")
 
         if not span_id:
             continue
@@ -107,13 +124,15 @@ def create_evaluation_dataframe(
         if score is None:
             continue
 
+        score = float(score)
+
         rows.append(
             {
-                "context.span_id": span_id,
-                "score": float(score),
+                "span_id": span_id,
+                "score": score,
                 "label": (
                     "pass"
-                    if float(score) >= 0.7
+                    if score >= 0.7
                     else "fail"
                 ),
                 "explanation": reason,
@@ -127,11 +146,86 @@ def create_evaluation_dataframe(
 
 
 # ============================================================
-# SEND EVALUATION TO PHOENIX
+# SEND ONE ANNOTATION TO PHOENIX
+# ============================================================
+
+def send_annotation(
+    annotation_url,
+    api_key,
+    span_id,
+    evaluation_name,
+    score,
+    label,
+    explanation,
+):
+
+    payload = {
+        "span_id": span_id,
+        "name": evaluation_name,
+        "annotator_kind": "LLM",
+        "result": {
+            "label": label,
+            "score": score,
+            "explanation": explanation,
+        },
+    }
+
+    request = Request(
+        annotation_url,
+        data=json.dumps(payload).encode(
+            "utf-8"
+        ),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "api_key": api_key,
+        },
+        method="POST",
+    )
+
+    try:
+
+        with urlopen(
+            request,
+            timeout=30
+        ) as response:
+
+            return response.status
+
+    except HTTPError as error:
+
+        body = error.read().decode(
+            "utf-8",
+            errors="replace"
+        )
+
+        print(
+            f"\nPhoenix API error "
+            f"{error.code}:"
+        )
+
+        print(body)
+
+        return None
+
+    except URLError as error:
+
+        print(
+            "\nCould not connect to Phoenix:"
+        )
+
+        print(error)
+
+        return None
+
+
+# ============================================================
+# LOG EVALUATION
 # ============================================================
 
 def log_evaluation(
-    client,
+    annotation_url,
+    api_key,
     results,
     evaluation_name
 ):
@@ -155,17 +249,38 @@ def log_evaluation(
         f"Logging {evaluation_name}..."
     )
 
-    print(dataframe)
-
-    client.log_evaluations(
-        SpanEvaluations(
-            eval_name=evaluation_name,
-            dataframe=dataframe
-        )
+    print(
+        dataframe[
+            [
+                "span_id",
+                "score",
+                "label"
+            ]
+        ]
     )
 
+    success_count = 0
+
+    for _, row in dataframe.iterrows():
+
+        status = send_annotation(
+            annotation_url=annotation_url,
+            api_key=api_key,
+            span_id=row["span_id"],
+            evaluation_name=evaluation_name,
+            score=float(row["score"]),
+            label=row["label"],
+            explanation=row["explanation"],
+        )
+
+        if status and 200 <= status < 300:
+
+            success_count += 1
+
     print(
-        f"{evaluation_name} logged successfully."
+        f"{evaluation_name}: "
+        f"{success_count}/{len(dataframe)} "
+        f"annotations uploaded."
     )
 
 
@@ -181,7 +296,7 @@ def main():
     print("=" * 70)
 
     # --------------------------------------------------------
-    # Load results
+    # Load evaluation results
     # --------------------------------------------------------
 
     results = load_results()
@@ -191,21 +306,32 @@ def main():
     )
 
     # --------------------------------------------------------
-    # Connect to Phoenix
+    # Phoenix configuration
     # --------------------------------------------------------
 
-    client = get_phoenix_client()
+    api_key, annotation_url = (
+        get_phoenix_config()
+    )
+
+    print(
+        "\nPhoenix annotation endpoint:"
+    )
+
+    print(
+        annotation_url
+    )
 
     # --------------------------------------------------------
-    # Log each evaluator separately
+    # Log evaluations
     # --------------------------------------------------------
 
     for evaluation_name in EVALUATIONS:
 
         log_evaluation(
-            client,
-            results,
-            evaluation_name
+            annotation_url=annotation_url,
+            api_key=api_key,
+            results=results,
+            evaluation_name=evaluation_name,
         )
 
     # --------------------------------------------------------
@@ -218,11 +344,7 @@ def main():
     print("=" * 70)
 
     print(
-        "\nOpen Phoenix:"
-    )
-
-    print(
-        PHOENIX_URL
+        "\nEvaluations have been sent to Phoenix."
     )
 
 
